@@ -43,58 +43,16 @@ do
 	#Save all transactions to txtemp.txt
 	CMD="curl http://blockexplorer.com/rawblock/$CURRENTHASH | $JSAWKPATH 'forEach(this.tx, \"out(item)\").join(\"\\n\")'"
 	TXS=$(eval $CMD)
-	rm txtemp.txt
-	rm richtxtemp.txt
-	echo "$TXS" > txtemp.txt
-
-	LINE="1"
-	#Add IP and GEO info
-	for tx in $(cat txtemp.txt)
-	do
-		CMD="cat txtemp.txt | wc -l | tr -d ' '"
-		COUNT=$(eval $CMD)
-		if [ "$LINE" -le "$COUNT" ]
-		then
-			CMD="sed '$LINE q;d' txtemp.txt | $JSAWKPATH 'return this.hash'"
-			TXID=$(eval $CMD)
-
-			#get transaction ip 
-			CMD="curl http://blockchain.info/es/tx/$TXID"
-			BCPAGE=$(eval $CMD)
-			rm blockchainpage.html
-			echo "$BCPAGE" > blockchainpage.html
-
-			CMD="cat blockchainpage.html | grep \"ip-address/\" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | uniq"
-			IP=$(eval $CMD)
-			
-			#get country by ip if ip is not null
-			COUNTRY=""
-			if [ "$IP" != "" ]
-			then
-				CMD="curl ipinfo.io/$IP | $JSAWKPATH 'return this.country'"
-				COUNTRY=$(eval $CMD)
-			fi
-
-			#add ip and geo info to transaction json as nodes
-			CMD="sed '$LINE q;d' txtemp.txt | sed 's/\"ver\"/\"geo\":\"$COUNTRY\",\"ip\":\"$IP\",\"ver\"/g'"
-			RICHTX=$(eval $CMD)
-			echo "$RICHTX" >> richtxtemp.txt
-			((LINE++))
-		fi
-	done
-
-	#Add transactions to final file
-	CMD="cat richtxtemp.txt >> data/transactions.txt"
-	eval $CMD
+	echo "$TXS" >> data/transactions.json
 
 	#Split file if have more than x lines
 	CMD="cat dump.sh | wc -l | tr -d ' '"
 	LINESCOUNT=$(eval $CMD)
 
-	if [ $LINESCOUNT -gt 5000 ]
+	if [ "$LINESCOUNT" -gt 50000 ]
 	then
 		TIMESTAMP=$(date +%m%d%y%H%M%S)
-		CMD="mv data/transactions.tx data/transactions$TIMESTAMP.txt"
+		CMD="mv data/transactions.json data/transactions$TIMESTAMP.tx.json"
 		eval $CMD
 	fi
 
