@@ -18,15 +18,14 @@ CMD="mkdir $OUTPUTDIR"
 eval $CMD
 
 CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"getinfo\", \"params\": [] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT |  sed -E 's|([a-z0-9]{64})|"\1"|g' | $JSAWKPATH 'return this.result.blocks'"
-echo "$CMD"
 BLOCKS=$(eval $CMD)
 echo "ACTUALLY THERE ARE $BLOCKS BLOCKS ON BLOCKCHAIN.INFO"
 ((BLOCKS--))
-#Set current processed block
 
+#Set current processed block
 if [ -f 'temp/currentblock.txt' ];
 then
-   echo "The execution continues on BLOCK $(<temp/currentblock.txt)"
+   echo "THE EXECUTION CONTINUES ON BLOCK $(<temp/currentblock.txt)"
 else
    echo "Starting dump on BLOCK 1"
    echo "$BLOCKS" > temp/currentblock.txt
