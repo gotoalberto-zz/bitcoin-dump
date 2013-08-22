@@ -18,8 +18,6 @@ echo "######################################"
 echo "Started at $(date)"
 echo "######################################"
 mkdir temp
-CMD="rm $OUTPUTDIR/transactions.csv"
-eval $CMD
 CMD="mkdir $OUTPUTDIR"
 eval $CMD
 PID=$$
@@ -41,6 +39,9 @@ else
 fi
 CURRENTBLOCK=($(<temp/currentblock.txt))
 
+CMD="rm $OUTPUTDIR/transactions.$CURRENTBLOCK.csv"
+eval $CMD
+
 #############################################################################
 ########################## Extract data
 #############################################################################
@@ -49,6 +50,7 @@ echo ""
 while [ $CURRENTBLOCK -gt $1 ]
 do
 	#Obtain hash of current block to process
+	echo ""
 	echo "PROCESSING BLOCK $CURRENTBLOCK FROM $BLOCKS ..."
 	CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"getblockhash\", \"params\": [$CURRENTBLOCK] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT | $JSAWKPATH 'return this.result'"
 	CURRENTHASH=$(eval $CMD)
@@ -118,7 +120,7 @@ do
 			((TX_LINE++))
 		done
 
-		CMD="cat temp/txfinal.json >> $OUTPUTDIR/transactions.csv"
+		CMD="cat temp/txfinal.json >> $OUTPUTDIR/transactions.$CURRENTBLOCK.csv"
 		eval $CMD
 
 		CMD="find /Users/gotoalberto/git/bitcoin-dump/data -name '*.csv' | xargs wc -l |grep total | sed s/total//g | sed s/\ //g"
@@ -135,7 +137,9 @@ do
 	if [ "$LINESCOUNT" > "9000000" ]
 	then
 		TIMESTAMP=$(date +%y%m%d%H%M%S)
-		CMD="mv $OUTPUTDIR/transactions.csv $OUTPUTDIR/transactions$TIMESTAMP.tx.csv"
+		CMD="mv $OUTPUTDIR/transactions.$CURRENTBLOCK.csv $OUTPUTDIR/transactions.$TIMESTAMP.tx.csv"
+		echo ""
+		echo "SPLITTING OUTPUT FILE, $LINESCOUNT LINES ON FILE."
 		eval $CMD
 	fi
 
