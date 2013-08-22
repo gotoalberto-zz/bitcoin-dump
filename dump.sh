@@ -120,7 +120,7 @@ do
 	CMD="cat $OUTPUTDIR/transactions.json | wc -l | tr -d ' '"
 	LINESCOUNT=$(eval $CMD)
 
-	if [ "$LINESCOUNT" > "100" ]
+	if [ "$LINESCOUNT" > "5000" ]
 	then
 		TIMESTAMP=$(date +%y%m%d%H%M%S)
 		CMD="mv $OUTPUTDIR/transactions.json $OUTPUTDIR/transactions$TIMESTAMP.tx.json"
