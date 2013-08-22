@@ -39,6 +39,7 @@ CURRENTBLOCK=($(<temp/currentblock.txt))
 ########################## Extract data
 #############################################################################
 echo "$BLOCKS"
+((CURRENTBLOCK--))
 
 while [ $CURRENTBLOCK -gt $1 ]
 do
@@ -122,7 +123,7 @@ do
 	CMD="cat $OUTPUTDIR/transactions.csv | wc -l | tr -d ' '"
 	LINESCOUNT=$(eval $CMD)
 
-	if [ "$LINESCOUNT" > "1000000" ]
+	if [ "$LINESCOUNT" > "9000000" ]
 	then
 		TIMESTAMP=$(date +%y%m%d%H%M%S)
 		CMD="mv $OUTPUTDIR/transactions.csv $OUTPUTDIR/transactions$TIMESTAMP.tx.csv"
