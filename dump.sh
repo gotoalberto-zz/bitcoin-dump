@@ -110,20 +110,20 @@ do
 			((TX_LINE++))
 		done
 
-		CMD="cat temp/txfinal.json >> $OUTPUTDIR/transactions.json"
+		CMD="cat temp/txfinal.json >> $OUTPUTDIR/transactions.csv"
 		eval $CMD
 
 		((TXID_LINE++))
 	done
 
 	#Split file if have more than x lines
-	CMD="cat $OUTPUTDIR/transactions.json | wc -l | tr -d ' '"
+	CMD="cat $OUTPUTDIR/transactions.csv | wc -l | tr -d ' '"
 	LINESCOUNT=$(eval $CMD)
 
 	if [ "$LINESCOUNT" > "5000" ]
 	then
 		TIMESTAMP=$(date +%y%m%d%H%M%S)
-		CMD="mv $OUTPUTDIR/transactions.json $OUTPUTDIR/transactions$TIMESTAMP.tx.json"
+		CMD="mv $OUTPUTDIR/transactions.csv $OUTPUTDIR/transactions$TIMESTAMP.tx.csv"
 		eval $CMD
 	fi
 
