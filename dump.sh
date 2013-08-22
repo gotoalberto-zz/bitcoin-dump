@@ -13,7 +13,13 @@ OUTPUTDIR="/Users/gotoalberto/git/bitcoin-dump/data"
 #############################################################################
 ########################## Obtain blocks number on blockchain
 #############################################################################
+echo ""
+echo "######################################"
+echo "Started at $(date)"
+echo "######################################"
 mkdir temp
+CMD="rm $OUTPUTDIR/transactions.csv"
+eval $CMD
 CMD="mkdir $OUTPUTDIR"
 eval $CMD
 PID=$$
@@ -38,13 +44,12 @@ CURRENTBLOCK=($(<temp/currentblock.txt))
 #############################################################################
 ########################## Extract data
 #############################################################################
-echo "$BLOCKS"
-((CURRENTBLOCK--))
+echo ""
 
 while [ $CURRENTBLOCK -gt $1 ]
 do
 	#Obtain hash of current block to process
-	echo "PROCESSING BLOCK $CURRENTBLOCK FROM $BLOCKS"
+	echo "PROCESSING BLOCK $CURRENTBLOCK FROM $BLOCKS ..."
 	CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"getblockhash\", \"params\": [$CURRENTBLOCK] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT | $JSAWKPATH 'return this.result'"
 	CURRENTHASH=$(eval $CMD)
 
@@ -115,6 +120,10 @@ do
 
 		CMD="cat temp/txfinal.json >> $OUTPUTDIR/transactions.csv"
 		eval $CMD
+
+		CMD="find /Users/gotoalberto/git/bitcoin-dump/data -name '*.csv' | xargs wc -l |grep total | sed s/total//g | sed s/\ //g"
+		TOTAL_RECORDS=$(eval $CMD)
+		echo -ne "\x0d$TOTAL_RECORDS TOTAL RECORDS SAVED AT NOW."
 
 		((TXID_LINE++))
 	done
