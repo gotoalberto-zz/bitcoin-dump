@@ -16,6 +16,9 @@ OUTPUTDIR="/Users/gotoalberto/git/bitcoin-dump/data"
 mkdir temp
 CMD="mkdir $OUTPUTDIR"
 eval $CMD
+PID=$$
+CMD="echo $PID > dump.pid"
+eval $CMD
 
 CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"getinfo\", \"params\": [] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT |  sed -E 's|([a-z0-9]{64})|"\1"|g' | $JSAWKPATH 'return this.result.blocks'"
 BLOCKS=$(eval $CMD)
@@ -119,7 +122,7 @@ do
 	CMD="cat $OUTPUTDIR/transactions.csv | wc -l | tr -d ' '"
 	LINESCOUNT=$(eval $CMD)
 
-	if [ "$LINESCOUNT" > "3000000" ]
+	if [ "$LINESCOUNT" > "1000000" ]
 	then
 		TIMESTAMP=$(date +%y%m%d%H%M%S)
 		CMD="mv $OUTPUTDIR/transactions.csv $OUTPUTDIR/transactions$TIMESTAMP.tx.csv"

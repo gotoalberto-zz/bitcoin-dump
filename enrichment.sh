@@ -10,8 +10,14 @@ DATAPATH="/Users/gotoalberto/git/bitcoin-dump/data"
 #############################################################################
 ########################## ADD IP AND GEO INFO
 #############################################################################
+	CMD="mkdir temp"
+	eval $CMD
 
-	DATA_PATH_FILES="$DATAPATH/*.tx.json"
+	PID=$$
+	CMD="echo $PID > enrichment.pid"
+	eval $CMD
+
+	DATA_PATH_FILES="$DATAPATH/*.tx.csv"
 	#Add IP and GEO info
 	for filename in $DATA_PATH_FILES
 	do
@@ -22,6 +28,7 @@ DATAPATH="/Users/gotoalberto/git/bitcoin-dump/data"
 
 		if [ "$PROCESSED_NUMBER" == "0" ] 
 		then
+
 			CMD="echo $filename >> $DATAPATH/processed.txt"
 			eval $CMD
 
@@ -29,41 +36,60 @@ DATAPATH="/Users/gotoalberto/git/bitcoin-dump/data"
 			COUNT=$(eval $CMD)
 
 			LINE="1"
-			rm richtemp.json
+			rm temp/richtemp.csv
+			rm temp/cache.csv
 			while [ "$LINE" -le "$COUNT" ]
 			do
 				#Get transaction hash
-				CMD="sed '$LINE q;d' $filename | $JSAWKPATH 'return this.hash'"
+				CMD="sed '$LINE q;d' $filename | tr ';' '\n' | sed '4 q;d'"
 				TXID=$(eval $CMD)
 
-				#get transaction ip 
-				CMD="curl http://blockchain.info/es/tx/$TXID"
-				BCPAGE=$(eval $CMD)
-				rm blockchainpage.html
-				echo "$BCPAGE" > blockchainpage.html
-				CMD="cat blockchainpage.html | grep \"ip-address/\" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | uniq"
-				IP=$(eval $CMD)
-
-				#if ip is not null, get country
-				COUNTRY=""
-				if [ "$IP" != "" ]
+				CMD="cat temp/cache.csv | grep $TXID | uniq"
+				CACHETX=$(eval $CMD)
+				if [ "$CACHETX" != "" ] 
 				then
-					CMD="curl ipinfo.io/$IP | $JSAWKPATH 'return this.country'"
+					CMD="cat temp/cache.csv | grep $TXID | uniq | tr ';' '\n' | sed '2 q;d'"
+					IP=$(eval $CMD)
+					CMD="cat temp/cache.csv | grep $TXID | uniq | tr ';' '\n' | sed '3 q;d'"
 					COUNTRY=$(eval $CMD)
-				fi
+				else
+					#get transaction ip 
+					CMD="curl http://blockchain.info/es/tx/$TXID"
+					BCPAGE=$(eval $CMD)
+					rm temp/blockchainpage.html
+					echo "$BCPAGE" > temp/blockchainpage.html
+					CMD="cat temp/blockchainpage.html | grep \"ip-address/\" | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | uniq"
+					IP=$(eval $CMD)
 
+					if [ "$IP" == "0.0.0.0" ]
+					then
+						$IP=""
+					fi
+
+					#If ip is not null, get country
+					COUNTRY=""
+					if [ "$IP" != "" ]
+					then
+						CMD="curl ipinfo.io/$IP | $JSAWKPATH 'return this.country'"
+						COUNTRY=$(eval $CMD)
+					fi
+				fi
+				
 				#Add country and ip as json nodes
-				CMD="sed '$LINE q;d' $filename | sed 's/\"ver\"/\"geo\":\"$COUNTRY\",\"ip\":\"$IP\",\"ver\"/g'"
-				RICHTX=$(eval $CMD)
+				CMD="sed '$LINE q;d' $filename"
+				ORIGINALTX=$(eval $CMD)
+				RICHTX="$ORIGINALTX;$IP;$COUNTRY"
 
 				#Save rich transaction on temp file
-				echo $RICHTX >> richtemp.json
+				echo $RICHTX >> temp/richtemp.csv
 
-				#rename original file to *_processed and create new rich_* file
-				CMD="mv richtemp.json \"${filename%.tx*}.rich.json\""
-				eval $CMD
+				CACHETX="$TXID;$IP;$COUNTRY"
+				echo $CACHETX >> temp/cache.csv
 
 				((LINE++))
 			done
+			#rename original file to *_processed and create new rich_* file
+			CMD="mv temp/richtemp.csv \"${filename%.tx*}.rich.csv\""
+			eval $CMD
 		fi
 	done
