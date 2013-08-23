@@ -57,9 +57,8 @@ do
 
 	#Save all transactions to txtemp.txt
 	rm txidtemp.json
-	CMD="curl http://blockexplorer.com/rawblock/$CURRENTHASH | $JSAWKPATH 'forEach(this.tx, \"out(item.hash)\").join(\"\\n\")'"
-	TXS=$(eval $CMD)
-	echo "$TXS" > temp/txidtemp.json
+	CMD="curl http://blockexplorer.com/rawblock/$CURRENTHASH | $JSAWKPATH 'forEach(this.tx, \"out(item.hash)\").join(\"\\n\")' > temp/txidtemp.json"
+	eval $CMD
 
 	CMD="cat temp/txidtemp.json | wc -l | tr -d ' '"
 	TXID_COUNT=$(eval $CMD)
