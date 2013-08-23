@@ -92,8 +92,11 @@ do
 		TXHASH=$(eval $CMD)
 		CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"gettransaction\", \"params\": [\"$TXHASH\"] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT | $JSAWKPATH  'forEach(this.result.details, \"out(item.address + \\\";\\\" + item.blockhash + \\\";\\\" + item.txid + \\\";\\\" + item.time + \\\";\\\" + item.amount + \\\";\\\" + item.label)\").join(\"\\n\")' > $TEMPDIR/txtemp.csv"		
 		eval $CMD
+
 		CMD="cat $TEMPDIR/txtemp.csv"
 		TXTEMPCSV=$(eval $CMD)
+
+		SLEEP_COUNT="1"
 		while [ "$TXTEMPCSV" == "" ]
 		do
 			((TXID_LINE++))
@@ -104,6 +107,13 @@ do
 			eval $CMD
 			CMD="cat $TEMPDIR/txtemp.csv"
 			TXTEMPCSV=$(eval $CMD)
+			if [ "$SLEEP_COUNT" > 5 ]
+			then
+				echo "IP temporarily blocked due to too many requests, waiting 60 seconds..."
+				SLEEP_COUNT="1"
+				sleep 60
+			fi
+			((SLEEP_COUNT++))
 		done
 
 		CMD="cat $TEMPDIR/txtemp.csv | sed '/\-/d' > $TEMPDIR/subtxtemp.csv"
