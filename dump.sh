@@ -131,7 +131,7 @@ do
 	done
 
 	#Split file if have more than x lines
-	CMD="cat $OUTPUTDIR/transactions.csv | wc -l | tr -d ' '"
+	CMD="cat $OUTPUTDIR/transactions.$CURRENTBLOCK.csv | wc -l | tr -d ' '"
 	LINESCOUNT=$(eval $CMD)
 
 	if [ "$LINESCOUNT" > "9000000" ]
