@@ -1,5 +1,6 @@
 #!/bin/bash
 
+echo "Starting threads... please wait."
 if [ -f "pid/dump_threads.dat" ]
 then
 	echo "Already running!"
@@ -23,6 +24,7 @@ else
 		CMD="mkdir log_dump_$THREAD"
 		eval $CMD
 		exec ./dump.sh "$THREAD" > "log_dump_$THREAD/out.log" 2> "log_dump_$THREAD/error.log" &
+		sleep 1
 		((THREAD++))
 	done
 	

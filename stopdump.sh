@@ -23,7 +23,7 @@ while [ "$THREAD" -le "$THREADS" ]
 do
 	 CMD="kill -9 $(cat pid/dump$THREAD.pid)"
 	 eval $CMD
-	 CMD="rm -rf log_dump_$THREAD temp_dump_$THREAD $OUTPUTDIR/workinprogress_$THREAD*"
+	 CMD="rm -rf log_dump_$THREAD temp_dump_$THREAD $OUTPUTDIR/wip_dump_$THREAD*"
 	 eval $CMD
 
 	 ((THREAD++))
