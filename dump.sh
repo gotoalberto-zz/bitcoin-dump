@@ -38,7 +38,7 @@ PID=$$
 CMD="echo $PID > pid/dump$1.pid"
 eval $CMD
 
-CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"getinfo\", \"params\": [] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT |  sed -E 's|([a-z0-9]{64})|"\1"|g' | $JSAWKPATH 'return this.result.blocks'"
+CMD="curl --data-binary '{\"jsonrpc\": \"1.0\", \"id\":\"bitcoin\", \"method\": \"getinfo\", \"params\": [] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT |  sed -E 's|([a-z0-9]{64})|"\1"|g' | $JSAWKPATH 'return this.result.blocks'"
 BLOCKS=$(eval $CMD)
 
 #protection over too many request from same ip
@@ -50,7 +50,7 @@ do
 done
 
 CURRENTBLOCK=$(eval $CMD)
-echo "ACTUALLY THERE ARE $BLOCKS BLOCKS ON BLOCKCHAIN.INFO"
+echo "ACTUALLY THERE ARE $BLOCKS BLOCKS ON MINNER MACHINE"
 
 #############################################################################
 ########################## Extract data
@@ -73,17 +73,8 @@ do
 	#Obtain hash of current block to process
 	echo ""
 	echo "PROCESSING BLOCK $CURRENTBLOCK FROM $BLOCKS ..."
-	CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"getblockhash\", \"params\": [$CURRENTBLOCK] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT | $JSAWKPATH 'return this.result'"
+	CMD="curl --data-binary '{\"jsonrpc\": \"1.0\", \"id\":\"bitcoin\", \"method\": \"getblockhash\", \"params\": [$CURRENTBLOCK] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT | $JSAWKPATH 'return this.result'"
 	CURRENTHASH=$(eval $CMD)
-
-	#protection over too many request from same ip
-	while [ "$CURRENTHASH" == "" ]
-	do
-		echo ""
-		echo "Blockchain.info has blocked this IP at $(date). Waiting 70 seconds..."
-		sleep 70
-		CURRENTHASH=$(eval $CMD)
-	done
 
 	#Save all transactions to txtemp.txt
 	CMD="rm $TEMPDIR/txidtemp.csv"
@@ -93,7 +84,7 @@ do
 
 	CMD="cat $TEMPDIR/txidtemp.csv | wc -l | tr -d ' '"
 	TXID_COUNT=$(eval $CMD)
-	TXID_LINE="2" #because line 1 is ""
+	TXID_LINE="1" 
 
 	#Iterate over all transaction ids of this block
 	while [ "$TXID_LINE" -le "$TXID_COUNT" ]
@@ -105,52 +96,80 @@ do
 		CMD="sed '$TXID_LINE q;d' $TEMPDIR/txidtemp.csv"
 		TXHASH=$(eval $CMD)
 
-		#Save all sub-transactions of this transaction
-		CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"gettransaction\", \"params\": [\"$TXHASH\"] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT | $JSAWKPATH  'forEach(this.result.details, \"out(item.address + \\\";\\\" + item.blockhash + \\\";\\\" + item.txid + \\\";\\\" + item.time + \\\";\\\" + item.amount + \\\";\\\" + item.label)\").join(\"\\n\")' > $TEMPDIR/txtemp.csv"		
+		#save page as html	
+		CMD="curl http://blockexplorer.com/tx/$TXHASH > $TEMPDIR/blockexplorer.html"
 		eval $CMD
 
-		#protection over too many request from same ip
-		CMD="curl blockchain.info"
-		RESPONSE=$(eval $CMD)
-		while [ "$RESPONSE" == "IP temporarily blocked due to too many requests" ]
+		Obtain number of inputs
+		CMD="cat $TEMPDIR/blockexplorer.html | grep \"Number of input\" |sed 's/^.\{230\}//' |sed 's/.\{44\}$//'"
+		NUMBER_INPUTS=$(eval $CMD)
+
+		CMD="cat $TEMPDIR/blockexplorer.html | grep \"Number of outputs\" |sed 's/^.\{23\}//' |sed 's/.\{46\}$//'"
+		NUMBER_OUTPUTS=$(eval $CMD)
+
+		CMD="cat $TEMPDIR/blockexplorer.html | grep \"Appeared in\" | sed -e ';s/.*(//g' | sed -e ';s/).*//g'"
+		TX_TIMESTAMP=$(eval $CMD)
+
+		#Otain all address -> ;line;address
+		CMD="cat $TEMPDIR/blockexplorer.html | grep -rne /address/ | grep -rne /address/ | sed '$ d' |sed 's/^.\{35\}//' |sed 's/.\{44\}$//' | sed 's/:/;/g' | sed s/\"\\/\"//g |sed s/\"<td><a href=\"//g | sed s/\"\\\"address\"//g | cut -d \";\" -f2 -f3 | sed s/\\\"//> $TEMPDIR/addresses.csv"
+		eval $CMD
+
+		ADDR_LINE="1"
+		#read txin
+		while [ "$ADDR_LINE" -le "$NUMBER_INPUTS" ] 
 		do
-			echo ""
-			echo "Blockchain.info has blocked this IP at $(date). Waiting 70 seconds..."
-			sleep 70
-			CMD="curl --data-binary '{\"jsonrpc\": \"2.0\", \"id\":\"bitcoin\", \"method\": \"gettransaction\", \"params\": [\"$TXHASH\"] }'  -H 'content-type: text/plain;' https://$RPCMINNERUSER:$RPCMINNERPASSWORD@$RPCMINNERIP:$RPCMINNERPORT | $JSAWKPATH  'forEach(this.result.details, \"out(item.address + \\\";\\\" + item.blockhash + \\\";\\\" + item.txid + \\\";\\\" + item.time + \\\";\\\" + item.amount + \\\";\\\" + item.label)\").join(\"\\n\")' > $TEMPDIR/txtemp.csv"		
+			#get amount
+			CMD="cat $TEMPDIR/addresses.csv | sed '$ADDR_LINE q;d' | tr ';' '\n' | sed '1 q;d'"
+			AMOUNT_HTML_LINE=$(eval $CMD)
+			((AMOUNT_HTML_LINE--))
+			CMD="cat $TEMPDIR/blockexplorer.html | sed '$AMOUNT_HTML_LINE q;d' |tr -d '</td>'"
+			AMOUNT=$(eval $CMD)
+			CMD="cat $TEMPDIR/addresses.csv | sed '$ADDR_LINE q;d' | tr ';' '\n' | sed '2 q;d'"
+			ADDR=$(eval $CMD)
+
+			CMD="echo \"$ADDR;$CURRENTHASH;$TXHASH;$TX_TIMESTAMP;$AMOUNT\" >> $TEMPDIR/txin.csv"
 			eval $CMD
-			CMD="curl blockchain.info"
-			RESPONSE=$(eval $CMD)
+			((ADDR_LINE++))
 		done
 
+		#set add_line to number of inputs value
+		ADDR_LINE="$NUMBER_INPUTS"
+		((ADDR_LINE++))
 
-		#get all sub-transactions of this transaction
-		CMD="cat $TEMPDIR/txtemp.csv"
-		TXTEMPCSV=$(eval $CMD)
-
-		#Save sub-transactions out addresses, this sub-transactions don't contain "-" character
-		CMD="cat $TEMPDIR/txtemp.csv | sed '/\-/d' > $TEMPDIR/txout.csv"
-		eval $CMD
-		#Save sub-transactions in addresses, this sub-transactions cointain "-" minus sign in amount field
-		CMD="cat $TEMPDIR/txtemp.csv | grep -p '-' | sed -e 's/-//g' > $TEMPDIR/txin.csv"
-		eval $CMD
-
-		TX_OUT_LINE="1"
-		CMD="cat $TEMPDIR/txout.csv | wc -l | tr -d ' '"
-		TX_OUT_COUNT=$(eval $CMD)
-
-		#Iterate over out sub-transactions
-		while [ "$TX_OUT_LINE" -le "$TX_OUT_COUNT" ]
+		CMD="cat $TEMPDIR/addresses.csv| wc -l | tr -d ' '"
+		ADDR_IN_FILE=$(eval $CMD)
+		
+		#read txout
+		while [ "$ADDR_LINE" -le "$ADDR_IN_FILE" ] 
 		do
-			CMD="sed '$TX_OUT_LINE q;d' $TEMPDIR/txout.csv"
+			#get amount
+			CMD="cat $TEMPDIR/addresses.csv | sed '$ADDR_LINE q;d' | tr ';' '\n' | sed '1 q;d'"
+			AMOUNT_HTML_LINE=$(eval $CMD)
+			((AMOUNT_HTML_LINE--))
+			CMD="cat $TEMPDIR/blockexplorer.html | sed '$AMOUNT_HTML_LINE q;d' |tr -d '</td>'"
+			AMOUNT=$(eval $CMD)
+			CMD="cat $TEMPDIR/addresses.csv | sed '$ADDR_LINE q;d' | tr ';' '\n' | sed '2 q;d'"
+			ADDR=$(eval $CMD)
+			CMD="echo \"$ADDR;$CURRENTHASH;$TXHASH;$TX_TIMESTAMP;$AMOUNT\" >> $TEMPDIR/txout.csv"
+			eval $CMD
+			((ADDR_LINE++))
+		done
+
+		TX_IN_LINE="1"
+		CMD="cat $TEMPDIR/txin.csv | wc -l | tr -d ' '"
+		TX_IN_COUNT=$(eval $CMD)
+		#Iterate over out sub-transactions
+		while [ "$TX_IN_LINE" -le "$TX_IN_COUNT" ]
+		do
+			CMD="sed '$TX_IN_LINE q;d' $TEMPDIR/txin.csv"
 			TX=$(eval $CMD)
 
-			TX_IN_LINE="1"
-			CMD="cat $TEMPDIR/txin.csv | wc -l | tr -d ' '"
-			TX_IN_COUNT=$(eval $CMD)
+			TX_OUT_LINE="1"
+			CMD="cat $TEMPDIR/txout.csv | wc -l | tr -d ' '"
+			TX_OUT_COUNT=$(eval $CMD)
 
 			#iterate over in sub-transactions
-			while [ "$TX_IN_LINE" -le "$TX_IN_COUNT" ]
+			while [ "$TX_OUT_LINE" -le "$TX_OUT_COUNT" ]
 			do
 				#get amount from in sub-transaction
 				CMD="sed '$TX_IN_LINE q;d' $TEMPDIR/txin.csv | tr ';' '\n' | sed '5 q;d'"
@@ -160,16 +179,13 @@ do
 				CMD="sed '$TX_IN_LINE q;d' $TEMPDIR/txin.csv | tr ';' '\n' | sed '1 q;d'"
 				ADDRESS_IN=$(eval $CMD)
 
-				NEW="$TX_IN;$TX"
-				if [ "$NEW" != "$LAST" ]
-				then
-					CMD="echo \"$ADDRESS_IN;$AMOUNT_IN;$TX\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
-					eval $CMD
-				fi
-				LAST="$TX_IN;$TX"
-				((TX_IN_LINE++))
+				
+				CMD="echo \"$ADDRESS_IN;$AMOUNT_IN;$TX\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
+				eval $CMD
+				
+				((TX_OUT_LINE++))
 			done
-			((TX_OUT_LINE++))
+			((TX_IN_LINE++))
 		done
 
 		#Show lines number contained in all OUTPUTDATA files
