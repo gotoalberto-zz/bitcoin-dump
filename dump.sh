@@ -58,7 +58,6 @@ echo "ACTUALLY THERE ARE $BLOCKS BLOCKS ON MINNER MACHINE"
 
 while [ $CURRENTBLOCK -gt "1" ]
 do
-
 	CMD="find $OUTPUTDIR -type f -maxdepth 1 | grep $CURRENTBLOCK"
 	EXISTING=$(eval $CMD)
 
@@ -113,7 +112,6 @@ do
 		#Otain all address -> ;line;address
 		CMD="cat $TEMPDIR/blockexplorer.html | grep -rne /address/ | grep -rne /address/ | sed '$ d' |sed 's/^.\{35\}//' |sed 's/.\{44\}$//' | sed 's/:/;/g' | sed s/\"\\/\"//g |sed s/\"<td><a href=\"//g | sed s/\"\\\"address\"//g | cut -d \";\" -f2 -f3 | sed s/\\\"//> $TEMPDIR/addresses.csv"
 		eval $CMD
-
 		ADDR_LINE="1"
 		#read txin
 		while [ "$ADDR_LINE" -le "$NUMBER_INPUTS" ] 
@@ -158,40 +156,64 @@ do
 		TX_IN_LINE="1"
 		CMD="cat $TEMPDIR/txin.csv | wc -l | tr -d ' '"
 		TX_IN_COUNT=$(eval $CMD)
-		#Iterate over out sub-transactions
-		while [ "$TX_IN_LINE" -le "$TX_IN_COUNT" ]
-		do
-			CMD="sed '$TX_IN_LINE q;d' $TEMPDIR/txin.csv"
-			TX=$(eval $CMD)
+		
+		#if transaction is new money
+		TX_OUT_FILE="$TEMPDIR/txout.csv"
+		if [ ! -f $TX_OUT_FILE ]
+		then
+			CMD="sed '1 q;d' $TEMPDIR/txin.csv"
+			TX_IN=$(eval $CMD)
 
-			TX_OUT_LINE="1"
-			CMD="cat $TEMPDIR/txout.csv | wc -l | tr -d ' '"
-			TX_OUT_COUNT=$(eval $CMD)
+			#get data from in sub-transaction
+			CMD="echo \"$TX_IN\" | tr ';' '\n' | sed '5 q;d'"
+			AMOUNT_IN=$(eval $CMD)
+			CMD="echo \"$TX_IN\" | tr ';' '\n' | sed '1 q;d'"
+			ADDRESS_IN=$(eval $CMD)
+			CMD="echo \"$TX_IN\" | tr ';' '\n' | sed '4 q;d'"
+			DATE_TX=$(eval $CMD)
 
-			#iterate over in sub-transactions
-			while [ "$TX_OUT_LINE" -le "$TX_OUT_COUNT" ]
+			CMD="echo \";$ADDRESS_IN;;$AMOUNT_IN;$DATE_TX;$CURRENTHASH;$TXHASH\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
+			eval $CMD
+		else
+			#Iterate over out sub-transactions
+			while [ "$TX_IN_LINE" -le "$TX_IN_COUNT" ]
 			do
-				#get amount from in sub-transaction
-				CMD="sed '$TX_IN_LINE q;d' $TEMPDIR/txin.csv | tr ';' '\n' | sed '5 q;d'"
-				AMOUNT_IN=$(eval $CMD)
+				CMD="sed '$TX_IN_LINE q;d' $TEMPDIR/txin.csv"
+				TX_IN=$(eval $CMD)
 
-				#get address from in sub-transaction
-				CMD="sed '$TX_IN_LINE q;d' $TEMPDIR/txin.csv | tr ';' '\n' | sed '1 q;d'"
-				ADDRESS_IN=$(eval $CMD)
+				TX_OUT_LINE="1"
+				CMD="cat $TEMPDIR/txout.csv | wc -l | tr -d ' '"
+				TX_OUT_COUNT=$(eval $CMD)
 
-				
-				CMD="echo \"$ADDRESS_IN;$AMOUNT_IN;$TX\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
-				eval $CMD
-				
-				((TX_OUT_LINE++))
+				#iterate over in sub-transactions
+				while [ "$TX_OUT_LINE" -le "$TX_OUT_COUNT" ]
+				do
+					CMD="sed '$TX_OUT_LINE q;d' $TEMPDIR/txout.csv"
+					TX_OUT=$(eval $CMD)
+
+					#get data from in sub-transaction
+					CMD="echo \"$TX_IN\" | tr ';' '\n' | sed '5 q;d'"
+					AMOUNT_IN=$(eval $CMD)
+					CMD="echo \"$TX_IN\" | tr ';' '\n' | sed '1 q;d'"
+					ADDRESS_IN=$(eval $CMD)
+					
+					#get data from out sub-transaction
+					CMD="echo \"$TX_OUT\" | tr ';' '\n' | sed '5 q;d'"
+					AMOUNT_OUT=$(eval $CMD)
+					CMD="echo \"$TX_OUT\" | tr ';' '\n' | sed '1 q;d'"
+					ADDRESS_OUT=$(eval $CMD)
+
+					CMD="echo \"$TX_OUT\" | tr ';' '\n' | sed '4 q;d'"
+					DATE_TX=$(eval $CMD)
+					
+					CMD="echo \"$ADDRESS_IN;$ADDRESS_OUT;$AMOUNT_IN;$AMOUNT_OUT;$DATE_TX;$CURRENTHASH;$TXHASH\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
+					eval $CMD
+					
+					((TX_OUT_LINE++))
+				done
+				((TX_IN_LINE++))
 			done
-			((TX_IN_LINE++))
-		done
-
-		#Show lines number contained in all OUTPUTDATA files
-		CMD="find $OUTPUTDIR -name '*.csv' | xargs wc -l |grep total | sed s/total//g | sed s/\ //g"
-		TOTAL_RECORDS=$(eval $CMD)
-		echo -ne "\x0d$TOTAL_RECORDS TOTAL RECORDS SAVED AT NOW."
+		fi
 
 		((TXID_LINE++))
 	done
