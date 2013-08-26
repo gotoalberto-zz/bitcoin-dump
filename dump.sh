@@ -172,7 +172,7 @@ do
 			CMD="echo \"$TX_IN\" | tr ';' '\n' | sed '4 q;d'"
 			DATE_TX=$(eval $CMD)
 
-			CMD="echo \";$ADDRESS_IN;;$AMOUNT_IN;$DATE_TX;$CURRENTHASH;$TXHASH\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
+			CMD="echo \";$ADDRESS_IN;;$AMOUNT_IN;$DATE_TX;$CURRENTHASH;$TXHASH;$CURRENTBLOCK\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
 			eval $CMD
 		else
 			#Iterate over out sub-transactions
@@ -206,7 +206,7 @@ do
 					CMD="echo \"$TX_OUT\" | tr ';' '\n' | sed '4 q;d'"
 					DATE_TX=$(eval $CMD)
 					
-					CMD="echo \"$ADDRESS_IN;$ADDRESS_OUT;$AMOUNT_IN;$AMOUNT_OUT;$DATE_TX;$CURRENTHASH;$TXHASH\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
+					CMD="echo \"$ADDRESS_IN;$ADDRESS_OUT;$AMOUNT_IN;$AMOUNT_OUT;$DATE_TX;$CURRENTHASH;$TXHASH;$CURRENTBLOCK\" >> $OUTPUTDIR/wip_dump_$1_$CURRENTBLOCK.csv"
 					eval $CMD
 					
 					((TX_OUT_LINE++))
