@@ -109,9 +109,14 @@ do
 		CMD="cat $TEMPDIR/blockexplorer.html | grep \"Appeared in\" | sed -e ';s/.*(//g' | sed -e ';s/).*//g'"
 		TX_TIMESTAMP=$(eval $CMD)
 
-		#Otain all address -> ;line;address
+		#Otain all address -> line;address
+		#on linux
+		#CMD="cat $TEMPDIR/blockexplorer.html | grep -rne /address/ | grep -rne /address/ | sed '$ d' |sed 's/.\{44\}$//' | sed 's/\\\"//' | sed 's/\\\"//' | sed -e 's/\(<td><a href=\/address\/\)//' | sed -e 's/:/;/' | sed -e 's/:/;/' | cut -d \";\" -f2,3 > $TEMPDIR/addresses.csv"
+		#on mac
 		CMD="cat $TEMPDIR/blockexplorer.html | grep -rne /address/ | grep -rne /address/ | sed '$ d' |sed 's/^.\{35\}//' |sed 's/.\{44\}$//' | sed 's/:/;/g' | sed s/\"\\/\"//g |sed s/\"<td><a href=\"//g | sed s/\"\\\"address\"//g | cut -d \";\" -f2 -f3 | sed s/\\\"//> $TEMPDIR/addresses.csv"
+		
 		eval $CMD
+
 		ADDR_LINE="1"
 		#read txin
 		while [ "$ADDR_LINE" -le "$NUMBER_INPUTS" ] 
@@ -121,9 +126,13 @@ do
 			AMOUNT_HTML_LINE=$(eval $CMD)
 			((AMOUNT_HTML_LINE--))
 			CMD="cat $TEMPDIR/blockexplorer.html | sed '$AMOUNT_HTML_LINE q;d' |tr -d '</td>'"
+			echo "$CMD"
 			AMOUNT=$(eval $CMD)
+			echo "$AMOUNT"
 			CMD="cat $TEMPDIR/addresses.csv | sed '$ADDR_LINE q;d' | tr ';' '\n' | sed '2 q;d'"
+			echo "$CMD"
 			ADDR=$(eval $CMD)
+			echo "$ADDR"
 
 			CMD="echo \"$ADDR;$CURRENTHASH;$TXHASH;$TX_TIMESTAMP;$AMOUNT\" >> $TEMPDIR/txin.csv"
 			eval $CMD
